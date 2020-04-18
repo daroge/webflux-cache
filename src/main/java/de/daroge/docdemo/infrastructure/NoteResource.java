@@ -6,17 +6,13 @@ import de.daroge.docdemo.infrastructure.service.NoteService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpRequest;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.net.URI;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.CompletionStage;
 
 @Slf4j
 @RestController
@@ -32,30 +28,28 @@ public class NoteResource {
     @Autowired
     private NoteService noteService;
 
+    private final MediaType mediaType = MediaType.APPLICATION_JSON;
+
     @GetMapping(produces = "application/json")
     ResponseEntity<Flux<Note>> getAll(){
         log.info("all-request received");
         return ResponseEntity.ok().body(Flux.from(repository.getAll()));
     }
 
-    @PostMapping(produces = "application/json",consumes = "application/json")
-    ResponseEntity<Mono<Note>> post(@RequestBody Note note) throws Exception{
-        log.info("new note with title "+ note.getTitle());
-        Map<String, String> params = new HashMap<>();
-        CompletionStage<Note> noteCompletionStage = noteService
+    @PostMapping(value = "/{owner}/{title}/{message}", produces = "application/json")
+    Mono<ResponseEntity<Note>> create(@PathVariable String owner, @PathVariable String title, @PathVariable String message) throws Exception{
+        log.info("new note with title "+ title);
+        Note note = new Note(owner,title,message);
+        return noteService
                 .createNote(note)
-                .thenApply( nte -> {
-                    params.put("id",nte.getId().toString());
-                    return note;
-                });
-        URI uri = UriComponentsBuilder.fromUriString(postUri).buildAndExpand(params).toUri();
-        return ResponseEntity.created(uri).body(Mono.fromCompletionStage(noteCompletionStage));
+                .map(nxt -> ResponseEntity.created(URI.create("/notes/"+nxt.getId()))
+                        .contentType(this.mediaType).build());
+
     }
 
     @GetMapping("/{id}")
     Mono<Note> getById(@PathVariable long id){
         log.info(String.format("getting a note with %d as id",id));
-        CompletionStage<Note> noteCompletableFuture = noteService.find(id);
-        return Mono.fromCompletionStage(noteCompletableFuture);
+        return noteService.find(id);
     }
 }

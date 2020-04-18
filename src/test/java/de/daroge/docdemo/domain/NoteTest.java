@@ -10,10 +10,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
-import protostream.com.google.gson.JsonObject;
-
-import java.util.HashMap;
-import java.util.Map;
 
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes=DomainConfig.class)

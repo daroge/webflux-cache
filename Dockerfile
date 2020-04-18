@@ -1,9 +1,9 @@
 FROM adoptopenjdk/maven-openjdk11 as BUILD
 WORKDIR /build
 COPY pom.xml .
+RUN mvn -B -f pom.xml dependency:go-offline
 COPY src /build/src
-RUN mvn dependency:go-offline -B
-RUN mvn clean package spring-boot:repackage
+RUN mvn -B install spring-boot:repackage
 
 FROM fabric8/java-alpine-openjdk11-jre
 COPY --from=BUILD /build/target/note-app.jar /app/note-app.jar

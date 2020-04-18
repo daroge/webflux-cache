@@ -8,10 +8,10 @@ public class NoteValidation {
     private Map<String,String> content = new HashMap<>();
 
     public void add(String field, String messageError){
-        content.put(field,messageError);
+        content.put(field, messageError);
     }
 
     public boolean empty(){
-        return content.size() > 0;
+        return content.isEmpty();
     }
 }

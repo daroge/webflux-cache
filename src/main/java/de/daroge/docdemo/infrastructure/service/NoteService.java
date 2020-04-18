@@ -11,9 +11,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.infinispan.Cache;
 import org.infinispan.manager.DefaultCacheManager;
 import org.springframework.stereotype.Service;
-
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
 @Slf4j
 @Service
@@ -21,45 +21,47 @@ public class NoteService {
 
     private INoteRepository noteRepository;
     private ObjectMapper objectMapper;
-    private DefaultCacheManager cacheManager;
+    private Scheduler scheduler = Schedulers.elastic();
+    private Cache<Long, Note> cache;
     public NoteService(INoteRepository noteRepository, ObjectMapper mapper, DefaultCacheManager cacheManager){
         this.noteRepository = noteRepository;
         this.objectMapper = mapper;
-        this.cacheManager = cacheManager;
+        cache = cacheManager.getCache("default");
     }
 
-    public CompletionStage<Note> createNote(Note note) throws InValidNoteException, JsonProcessingException {
+    public Mono<Note> createNote(Note note) throws InValidNoteException, JsonProcessingException {
+        log.info("validating the node");
         var validator = new Validator<>(new NoteValidation());
         var entity = note.valid(validator);
         if( !entity.empty() ){
+            log.info("validation error");
             throw  new InValidNoteException(objectMapper.writeValueAsString(entity));
         }
-        return CompletableFuture
-                .supplyAsync(() -> putInCache(note))
-                .thenApply(nte -> noteRepository.addNote(nte));
+        return Mono.fromCompletionStage(noteRepository.addNote(note))
+                .flatMap(nt -> Mono.fromSupplier( () -> putInCache(nt)).subscribeOn(scheduler));
     }
 
-    public CompletionStage<Note> find(Long id) {
-        return CompletableFuture.supplyAsync(() -> getFromCache(id))
-                .thenCompose(note -> {
-                    if (note != null) {
-                        log.info(String.format("Note with id %d found in cache",note.getId()));
-                        return CompletableFuture.completedStage(note);
-                    } else {
-                        return noteRepository.getById(id);
-                    }
-                });
+    public Mono<Note> find(Long id) {
+        log.info("in service locking a note");
+        return Mono.fromSupplier(() -> getNote(id)).subscribeOn(scheduler)
+                .switchIfEmpty(Mono.defer( () -> Mono.fromCompletionStage(noteRepository.getById(id)))
+                        .flatMap(note -> Mono.fromSupplier(() -> putInCache(note)).subscribeOn(scheduler)));
     }
 
     private Note putInCache(Note note){
         log.info("putting a new item into the cache");
-        Cache<Long,Note> cache = cacheManager.getCache("default");
-        cache.put(note.getId(),note);
+        cache.putIfAbsent(note.getId(),note);
         return note;
     }
-    private Note getFromCache(Long id){
-        log.info("looking item from the cache");
-        Cache<Long,Note> cache = cacheManager.getCache("default");
-        return cache.get(id);
+
+    private Note getNote(Long id){
+        log.info("looking a note in cache");
+        Note note = cache.get(id);
+        if(note != null){
+            log.info("note found in cache");
+            return note;
+        }
+        log.info("note not in cache");
+        return null;
     }
 }

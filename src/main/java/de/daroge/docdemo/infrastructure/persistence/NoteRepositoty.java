@@ -37,36 +37,35 @@ public class NoteRepositoty implements INoteRepository {
     }
 
     @Override
-    public Note addNote(Note note) {
-        final int[] key = new int[1];
-        final Note[] noteResult = new Note[1];
+    public CompletionStage<Note> addNote(Note note) {
+        final long[] key = new long[1];
+        CompletableFuture<Note> completableFuture = new CompletableFuture<>();
         Observable<Boolean> begin = database.beginTransaction();
-        Observable<Integer> observableKey = database.update("INSERT INTO note(title,owner,message) VALUES(?,?,?)")
+        Observable<Long> observableKey = database.update("INSERT INTO note(title,owner,message) VALUES(?,?,?)")
                 .parameters(note.getOwner(),note.getTitle(),note.getMessage()).dependsOn(begin).returnGeneratedKeys()
-                .getAs(Integer.class);
+                .getAs(Long.class);
         observableKey.forEach(in -> key[0] = in);
         QuerySelect.Builder selectBuilder = database.select("SELECT FROM * FROM note WHERE id = ?")
                 .parameter(key[0])
                 .dependsOn(observableKey);
+        log.info("the key "+ key[0]);
         Observable<Note> noteObservable = getFrom(selectBuilder);
-        noteObservable.forEach(nt -> noteResult[0] = nt);
-        return noteResult[0];
+        noteObservable.forEach(completableFuture::complete);
+        noteObservable.doOnError(completableFuture::completeExceptionally);
+        log.info("return the result from database");
+        return completableFuture;
     }
 
     @Override
     public CompletionStage<Note> getById(Long id) {
-        final Note[] note = new Note[1];
-        CompletableFuture<Note> result = new CompletableFuture<>();
+        CompletableFuture<Note> completableFuture = new CompletableFuture<>();
         QuerySelect.Builder builder = database.select("SELECT * FROM note WHERE id = ?")
                 .parameter(id);
         Observable<Note> observable = getFrom(builder);
         observable
-                .doOnError(error -> result.completeExceptionally(new NoteNotFoundException(String.format("note with id %d not found",id))))
-                .forEach(nte -> {
-            note[0] = nte;
-            result.complete(note[0]);
-        });
-        return result;
+                .doOnError(error -> new NoteNotFoundException(String.format("note with id %d not found",id)))
+                .forEach(completableFuture::complete);
+        return completableFuture;
     }
 
     private static Observable<Note> getFrom(QuerySelect.Builder builder) {

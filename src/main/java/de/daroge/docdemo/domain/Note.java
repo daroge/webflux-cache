@@ -23,6 +23,12 @@ public class Note {
         this.created = created;
     }
 
+    public Note(String owner, String title, String message) {
+        this.owner = owner;
+        this.title = title;
+        this.message = message;
+    }
+
     public NoteValidation valid(IValidator<NoteValidation> validator){
         return validator.map(noteValidation -> {
             if( !isTitleValid() ){
