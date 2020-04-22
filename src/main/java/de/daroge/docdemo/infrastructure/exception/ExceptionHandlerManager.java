@@ -11,8 +11,6 @@ import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebExceptionHandler;
 import reactor.core.publisher.Mono;
 
-@Order(-2)
-@Component
 public class ExceptionHandlerManager implements WebExceptionHandler {
 
     private static ObjectMapper objectMapper;

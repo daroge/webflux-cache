@@ -1,5 +1,6 @@
 package de.daroge.docdemo.domain;
 
+import de.daroge.docdemo.infrastructure.exception.NoteNotFoundException;
 import org.reactivestreams.Publisher;
 
 import java.util.concurrent.CompletionStage;

@@ -1,4 +1,4 @@
-version: '3.6'
+version: '3.3'
 
 networks:
   notelan:
@@ -28,6 +28,7 @@ services:
       WAIT_HOSTS_TIMEOUT: 1000
       WAIT_SLEEP_INTERVAL: 30
       WAIT_HOST_CONNECT_TIMEOUT: 1000
+    restart: unless-stopped
     build:
       context: .
       dockerfile: Dockerfile

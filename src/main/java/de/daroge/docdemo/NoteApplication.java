@@ -1,9 +1,11 @@
 package de.daroge.docdemo;
 
-import com.github.davidmoten.rx.jdbc.ConnectionProvider;
-import com.github.davidmoten.rx.jdbc.ConnectionProviderFromUrl;
 import com.github.davidmoten.rx.jdbc.Database;
+import org.infinispan.configuration.cache.ConfigurationBuilder;
+import org.infinispan.eviction.EvictionStrategy;
+import org.infinispan.eviction.EvictionType;
 import org.infinispan.manager.DefaultCacheManager;
+import org.infinispan.manager.EmbeddedCacheManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -18,7 +20,9 @@ import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import javax.annotation.PreDestroy;
 import javax.sql.DataSource;
 import java.io.IOException;
+import java.sql.Time;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 @ComponentScan
 @Configuration
@@ -32,6 +36,8 @@ public class NoteApplication {
     @Autowired
     private Environment env;
 
+    private EmbeddedCacheManager manager;
+
     @Bean
     @Primary
     public DataSource dataSource(){
@@ -44,19 +50,30 @@ public class NoteApplication {
     }
 
     @Bean
-    public DefaultCacheManager cacheManager() throws IOException {
-        return new DefaultCacheManager("config.xml");
+    public EmbeddedCacheManager cacheManager() {
+        ConfigurationBuilder config = new ConfigurationBuilder();
+        config
+                .expiration().lifespan(1, TimeUnit.HOURS)
+                .expiration().maxIdle(30,TimeUnit.MINUTES)
+                .simpleCache(true)
+                .memory().size(5000);
+        this.manager = new DefaultCacheManager();
+        manager.defineConfiguration("noteCache",config.build());
+        return manager;
     }
 
     @PreDestroy
-    public void stopCache() throws IOException {
-        cacheManager().stop();
+    public void releaseCache() throws IOException {
+        manager.close();
     }
 
     @Bean
     public Database database(){
-        ConnectionProvider connectionProvider = new ConnectionProviderFromUrl(env.getProperty("spring.datasource.url"),
-                env.getProperty("spring.datasource.username"),env.getProperty("spring.datasource.password"));
-        return Database.from(connectionProvider);
+        return Database.builder()
+                .url(env.getProperty("spring.datasource.url"))
+                .username(env.getProperty("spring.datasource.username"))
+                .password(env.getProperty("spring.datasource.password"))
+                .pool(Runtime.getRuntime().availableProcessors() * 2,Runtime.getRuntime().availableProcessors() * 3)
+                .build();
     }
 }

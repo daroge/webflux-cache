@@ -1,26 +1,24 @@
 package de.daroge.docdemo.infrastructure.persistence;
 
 import com.github.davidmoten.rx.jdbc.Database;
-import com.github.davidmoten.rx.jdbc.QuerySelect;
 import de.daroge.docdemo.domain.INoteRepository;
 import de.daroge.docdemo.domain.Note;
 import de.daroge.docdemo.infrastructure.exception.NoteNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.reactivestreams.Publisher;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 import rx.Observable;
 import rx.RxReactiveStreams;
 
+import javax.annotation.PreDestroy;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 @Slf4j
 @Repository
 public class NoteRepositoty implements INoteRepository {
-
-    @Value("${postUri}")
-    private String uri;
 
     private Database database;
     NoteRepositoty(Database database){
@@ -31,50 +29,41 @@ public class NoteRepositoty implements INoteRepository {
     @Override
     public Publisher<Note> getAll() {
         log.info("getting all notes from the database");
-        QuerySelect.Builder builder = database.select("select * from note");
-        Observable<Note> observable = getFrom(builder);
-        return RxReactiveStreams.toPublisher(observable);
+        return RxReactiveStreams.toPublisher(database.select("select * from note").get(this::getFrom));
     }
 
     @Override
     public CompletionStage<Note> addNote(Note note) {
-        final long[] key = new long[1];
         CompletableFuture<Note> completableFuture = new CompletableFuture<>();
-        Observable<Boolean> begin = database.beginTransaction();
-        Observable<Long> observableKey = database.update("INSERT INTO note(title,owner,message) VALUES(?,?,?)")
-                .parameters(note.getOwner(),note.getTitle(),note.getMessage()).dependsOn(begin).returnGeneratedKeys()
-                .getAs(Long.class);
-        observableKey.forEach(in -> key[0] = in);
-        QuerySelect.Builder selectBuilder = database.select("SELECT FROM * FROM note WHERE id = ?")
-                .parameter(key[0])
-                .dependsOn(observableKey);
-        log.info("the key "+ key[0]);
-        Observable<Note> noteObservable = getFrom(selectBuilder);
-        noteObservable.forEach(completableFuture::complete);
-        noteObservable.doOnError(completableFuture::completeExceptionally);
-        log.info("return the result from database");
+        Observable<Integer> observableKey = database.update("INSERT INTO note (owner,title,message) VALUES (?,?,?)")
+                .parameter(note.getOwner())
+                .parameter(note.getTitle())
+                .parameter(note.getMessage())
+                .returnGeneratedKeys()
+                .getAs(Integer.class);
+        Observable<Note> observableNote = database.select("SELECT * FROM note WHERE id = ?").parameters(observableKey).get(this::getFrom);
+        observableNote.forEach(completableFuture::complete);
+        observableNote.doOnError(completableFuture::completeExceptionally);
         return completableFuture;
     }
 
     @Override
-    public CompletionStage<Note> getById(Long id) {
+    public CompletionStage<Note> getById(Long id){
         CompletableFuture<Note> completableFuture = new CompletableFuture<>();
-        QuerySelect.Builder builder = database.select("SELECT * FROM note WHERE id = ?")
-                .parameter(id);
-        Observable<Note> observable = getFrom(builder);
-        observable
-                .doOnError(error -> new NoteNotFoundException(String.format("note with id %d not found",id)))
-                .forEach(completableFuture::complete);
+        Observable<Note> noteObservable = database.select("SELECT * FROM note WHERE id = ?")
+                .parameter(id).get(this::getFrom);
+        noteObservable.doOnError(error -> {
+            throw new NoteNotFoundException(String.format("note with id %d not found",id));
+        }).forEach(completableFuture::complete);
         return completableFuture;
     }
 
-    private static Observable<Note> getFrom(QuerySelect.Builder builder) {
-        return builder.get( rs -> new
-                Note(rs.getLong("id"),
-                rs.getString("owner"),
-                rs.getString("title"),
-                rs.getString("message"),
-                rs.getString("created")))
-                .asObservable();
+    private Note getFrom(ResultSet rs) throws SQLException {
+        return new Note(rs.getLong("id"), rs.getString("owner"), rs.getString("title"), rs.getString("message"), rs.getString("created"));
+    }
+
+    @PreDestroy
+    public void closeDatabase(){
+        database.close();
     }
 }

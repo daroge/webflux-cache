@@ -11,14 +11,4 @@ spring:
     username: noteusr
     password: notepw
     driver-class-name: org.postgresql.Driver
-postUri: "http://localhost:8008/notes/{id}"
-
-vertx:
-  postgresql:
-    database: notedb
-    port: 5432
-    username: noteusr
-    password: notepw
-    host:
-
 

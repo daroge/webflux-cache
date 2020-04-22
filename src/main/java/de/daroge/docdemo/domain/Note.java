@@ -5,15 +5,18 @@ import de.daroge.docdemo.domain.util.NoteValidation;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.Serializable;
+
 @Slf4j
 @Getter
-public class Note {
+public class Note implements Serializable {
 
     private Long id;
     private String owner;
     private String title;
     private String message;
     private String created;
+    private NoteId noteId;
 
     public Note(Long id,String owner,String title,String message,String created){
         this.id = id;
@@ -21,6 +24,7 @@ public class Note {
         this.title = title;
         this.message = message;
         this.created = created;
+        this.noteId = new NoteId(id);
     }
 
     public Note(String owner, String title, String message) {

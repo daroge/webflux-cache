@@ -10,8 +10,8 @@
 
     <properties>
         <java.version>11</java.version>
-        <vertx.version>3.9.0</vertx.version>
-        <infinispan.version>10.1.5.Final</infinispan.version>
+        <ignite.version>2.8.0</ignite.version>
+        <infinispan.version>10.1.6.Final</infinispan.version>
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -70,8 +70,23 @@
             <version>0.7.15</version>
         </dependency>
         <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
+            <version>3.4.2</version>
+        </dependency>
+        <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.infinispan</groupId>
+            <artifactId>infinispan-core</artifactId>
+            <version>${infinispan.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.infinispan</groupId>
+            <artifactId>infinispan-commons</artifactId>
+            <version>${infinispan.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -83,16 +98,6 @@
                     <artifactId>junit</artifactId>
                 </exclusion>
             </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.infinispan</groupId>
-            <artifactId>infinispan-core</artifactId>
-            <version>${infinispan.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.infinispan</groupId>
-            <artifactId>infinispan-commons</artifactId>
-            <version>${infinispan.version}</version>
         </dependency>
     </dependencies>
 
