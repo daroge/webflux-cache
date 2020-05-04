@@ -3,11 +3,9 @@ package de.daroge.docdemo.domain;
 import de.daroge.docdemo.domain.util.IValidator;
 import de.daroge.docdemo.domain.util.NoteValidation;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 
 import java.io.Serializable;
 
-@Slf4j
 @Getter
 public class Note implements Serializable {
 

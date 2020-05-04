@@ -7,7 +7,7 @@ threads and scale with less hardware resources. Contrary to Spring Web MVC
 spring doesn't yet provides caching out the box for webflux.
 
 This is a demo which shows how to use 
-Infinispan embedded in your webflux application in a reactive manner. 
+Infinispan embedded in your webflux application in a reactive manner leveraging spring aop. 
 Another caching solutions can be use in the same way. 
 
 ### Running the application

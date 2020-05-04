@@ -3,6 +3,7 @@ package de.daroge.docdemo.infrastructure.persistence;
 import com.github.davidmoten.rx.jdbc.Database;
 import de.daroge.docdemo.domain.INoteRepository;
 import de.daroge.docdemo.domain.Note;
+import de.daroge.docdemo.domain.NoteId;
 import de.daroge.docdemo.infrastructure.exception.NoteNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.reactivestreams.Publisher;
@@ -48,12 +49,12 @@ public class NoteRepositoty implements INoteRepository {
     }
 
     @Override
-    public CompletionStage<Note> getById(Long id){
+    public CompletionStage<Note> getById(NoteId id){
         CompletableFuture<Note> completableFuture = new CompletableFuture<>();
         Observable<Note> noteObservable = database.select("SELECT * FROM note WHERE id = ?")
-                .parameter(id).get(this::getFrom);
+                .parameter(id.getValue()).get(this::getFrom);
         noteObservable.doOnError(error -> {
-            throw new NoteNotFoundException(String.format("note with id %d not found",id));
+            throw new NoteNotFoundException(String.format("note with id %d not found",id.getValue()));
         }).forEach(completableFuture::complete);
         return completableFuture;
     }

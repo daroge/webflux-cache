@@ -8,5 +8,5 @@ import java.util.concurrent.CompletionStage;
 public interface INoteRepository {
     Publisher<Note> getAll();
     CompletionStage<Note> addNote(Note note);
-    CompletionStage<Note> getById(Long id);
+    CompletionStage<Note> getById(NoteId noteId);
 }

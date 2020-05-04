@@ -2,30 +2,25 @@ package de.daroge.docdemo;
 
 import com.github.davidmoten.rx.jdbc.Database;
 import org.infinispan.configuration.cache.ConfigurationBuilder;
-import org.infinispan.eviction.EvictionStrategy;
-import org.infinispan.eviction.EvictionType;
 import org.infinispan.manager.DefaultCacheManager;
 import org.infinispan.manager.EmbeddedCacheManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.*;
 import org.springframework.core.env.Environment;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 import javax.annotation.PreDestroy;
 import javax.sql.DataSource;
 import java.io.IOException;
-import java.sql.Time;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 @ComponentScan
 @Configuration
+@EnableAspectJAutoProxy
 @EnableAutoConfiguration(exclude={DataSourceAutoConfiguration.class})
 public class NoteApplication {
 

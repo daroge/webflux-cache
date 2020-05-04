@@ -10,30 +10,38 @@ import de.daroge.docdemo.infrastructure.exception.InValidNoteException;
 import de.daroge.docdemo.infrastructure.util.NoteRequest;
 import de.daroge.docdemo.infrastructure.util.Validator;
 import lombok.extern.slf4j.Slf4j;
-import org.infinispan.Cache;
 import org.infinispan.manager.EmbeddedCacheManager;
+import org.springframework.beans.factory.annotation.Configurable;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
-import java.util.Objects;
-
 @Slf4j
 @Service
+@Configurable
 public class NoteService {
 
     private INoteRepository noteRepository;
     private ObjectMapper objectMapper;
     private Scheduler scheduler = Schedulers.elastic();
-    private Cache<NoteId, Note> cache;
+
     public NoteService(INoteRepository noteRepository, ObjectMapper mapper, EmbeddedCacheManager cacheManager){
         this.noteRepository = noteRepository;
         this.objectMapper = mapper;
-        cache = cacheManager.getCache("noteCache");
     }
 
     public Mono<Note> createNote(NoteRequest noteRequest) throws InValidNoteException, JsonProcessingException {
+        Note note = checkRequest(noteRequest);
+        return addNote(note);
+    }
+
+    public Mono<Note> find(Long id) {
+        log.info("in service locking a note");
+        return Mono.fromCompletionStage(noteRepository.getById(new NoteId(id)));
+    }
+
+    private Note checkRequest(NoteRequest noteRequest) throws InValidNoteException, JsonProcessingException {
         log.info("validating the note");
         var validator = new Validator<>(new NoteValidation());
         Note note = new Note(noteRequest.getOwner(),noteRequest.getTitle(),noteRequest.getMessage());
@@ -42,31 +50,10 @@ public class NoteService {
             log.info("validation error");
             throw  new InValidNoteException(objectMapper.writeValueAsString(entity));
         }
-        return Mono.fromCompletionStage(noteRepository.addNote(note))
-                .flatMap(nt -> Mono.fromSupplier( () -> putInCache(nt)).subscribeOn(scheduler));
-    }
-
-    public Mono<Note> find(NoteId id) {
-        log.info("in service locking a note");
-        return Mono.fromSupplier(() -> getNote(id)).subscribeOn(scheduler)
-                .switchIfEmpty(Mono.defer( () -> Mono.fromCompletionStage(noteRepository.getById(id.getId())))
-                        .flatMap(note -> Mono.fromSupplier(() -> putInCache(note)).subscribeOn(scheduler)));
-    }
-
-    private Note putInCache(Note note){
-        log.info("putting a new item into the cache");
-        cache.put(note.getNoteId(),note);
         return note;
     }
 
-    private Note getNote(NoteId id){
-        log.info("looking a note in cache");
-        Note note = cache.get(id);
-        if(Objects.nonNull(note)){
-            log.info("note found in cache");
-            return note;
-        }
-        log.info("note not in cache");
-        return null;
+    private Mono<Note> addNote(Note note) {
+        return Mono.fromCompletionStage(noteRepository.addNote(note));
     }
 }
